@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { db, auth, provider } from "./firebase";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
@@ -74,7 +74,7 @@ const Pill = ({ children, fg, bg, border }) => (
 );
 
 const Stat = ({ label, value, sub, color }) => (
-  <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px 18px", minWidth: 0 }}>
+  <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px 18px", minWidth: 0, textAlign: 'left' }}>
     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6, letterSpacing: ".04em", textTransform: "uppercase", fontWeight: 600 }}>{label}</div>
     <div style={{ fontSize: 26, fontWeight: 700, color: color || "#e2e8f0", lineHeight: 1 }}>{value}{sub && <span style={{ fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.35)", marginLeft: 2 }}>{sub}</span>}</div>
   </div>
@@ -101,46 +101,31 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState({});
 
-  // 1. Listen for Auth State
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
-  // 2. Listen for Data (Firestore)
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "roadmap", "mission_data"), (snapshot) => {
-      if (snapshot.exists()) {
-        setS(snapshot.data());
-      } else {
-        setS(DEFAULT_STATE);
-      }
+      if (snapshot.exists()) setS(snapshot.data());
+      else setS(DEFAULT_STATE);
       setLoaded(true);
     });
     return () => unsub();
   }, []);
 
-  // 3. Persist to Firestore
   const persist = useCallback(async (ns) => {
-    if (!auth.currentUser) {
-      alert("Unauthorized: You must be logged in to save changes.");
-      return;
-    }
+    if (!auth.currentUser) return;
     setSaving(true);
-    try {
-      await setDoc(doc(db, "roadmap", "mission_data"), ns);
-    } catch (e) {
-      console.error("Save failed", e);
-      alert("Permission denied. Check Firestore rules.");
-    }
+    try { await setDoc(doc(db, "roadmap", "mission_data"), ns); } 
+    catch (e) { console.error("Save failed", e); }
     setSaving(false);
   }, []);
 
-  // Auth Handlers
   const login = () => signInWithPopup(auth, provider);
   const logout = () => signOut(auth);
 
-  // Task Handlers
   const toggle = id => { 
     const n = { ...s, tasks: { ...s.tasks } }; 
     if (n.tasks[id]) delete n.tasks[id]; 
@@ -179,35 +164,29 @@ export default function App() {
       
       {/* HEADER */}
       <div style={{ background: "linear-gradient(180deg, rgba(56,189,248,0.06) 0%, transparent 100%)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "28px 24px 20px" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", textAlign: 'left' }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".18em", textTransform: "uppercase", color: "#38bdf8", marginBottom: 6, fontFamily: "monospace" }}>
                 Mission Control — Radhey Patel
               </div>
-              <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, color: "#f1f5f9", letterSpacing: "-0.02em" }}>
-                Roadmap to NASA
-              </h1>
+              <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, color: "#f1f5f9", letterSpacing: "-0.02em" }}>Roadmap to NASA</h1>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {saving && <span style={{ fontSize: 10, color: "#38bdf8", fontFamily: "monospace" }}>SYNCING...</span>}
               {!user ? (
                 <button onClick={login} style={{ fontSize: 10, color: "#fff", background: "#38bdf8", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontWeight: 700 }}>LOGIN TO EDIT</button>
               ) : (
-                <button onClick={logout} style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 14px", cursor: "pointer" }}>LOGOUT ({user.email.split('@')[0]})</button>
+                <button onClick={logout} style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 14px", cursor: "pointer" }}>LOGOUT</button>
               )}
             </div>
           </div>
-
-          {/* Progress Bar */}
           <div style={{ marginTop: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>Global Progress</span>
               <span style={{ fontSize: 20, fontWeight: 800, color: "#f1f5f9", fontFamily: "monospace" }}>{pct}<span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>%</span></span>
             </div>
-            <div style={{ height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
-              <div style={{ height: "100%", background: "linear-gradient(90deg, #38bdf8, #a78bfa)", width: `${pct}%`, borderRadius: 8, transition: "width 0.7s cubic-bezier(.22,1,.36,1)" }} />
-            </div>
+            <Bar pct={pct} color="linear-gradient(90deg, #38bdf8, #a78bfa)" height={8} />
           </div>
         </div>
       </div>
@@ -227,9 +206,9 @@ export default function App() {
 
       {/* BODY */}
       <div style={{ padding: "20px 24px" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", textAlign: 'left' }}>
 
-          {/* TASKS TAB */}
+          {/* ═══ TASKS TAB ═══ */}
           {tab === "tasks" && (<>
             <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
               {PHASES.map(p => {
@@ -266,7 +245,7 @@ export default function App() {
                   <div key={task.id} style={{
                     background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14,
                     borderLeft: `3px solid ${isDone ? cur.accent + "44" : cur.accent}`,
-                    opacity: isDone ? 0.55 : 1, transition: "all 0.3s", overflow: "hidden",
+                    opacity: isDone ? 0.55 : 1, transition: "all 0.3s", overflow: "hidden", textAlign: 'left'
                   }}>
                     <div style={{ padding: "16px 18px" }}>
                       <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
@@ -281,21 +260,22 @@ export default function App() {
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                             <span style={{ fontSize: 14, fontWeight: 600, color: "#f1f5f9", textDecoration: isDone ? "line-through" : "none" }}>{task.name}</span>
                             <Pill fg={cat.fg} bg={cat.bg} border={cat.border}>{cat.label}</Pill>
+                            {task.est > 0 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: "monospace" }}>~{task.est}h</span>}
                           </div>
 
-                          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.6, marginBottom: 10 }}>{task.desc}</div>
+                          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.6, marginBottom: 10, textAlign: 'left' }}>{task.desc}</div>
 
                           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                             {editSched === task.id ? (
-                              <input type="date" onChange={e => setSched(task.id, e.target.value)} autoFocus style={{ fontSize: 11, background: "#1e293b", color: "#fff", border: "1px solid #38bdf8" }} />
+                              <input type="date" onChange={e => setSched(task.id, e.target.value)} autoFocus style={{ fontSize: 11, background: "#1e293b", color: "#fff", border: "1px solid #38bdf8", padding: '2px 5px' }} />
                             ) : (
-                              <button disabled={!user} onClick={() => setEditSched(task.id)} style={{ fontSize: 11, color: sched ? "#38bdf8" : "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: user ? "pointer" : "default" }}>
+                              <button disabled={!user} onClick={() => setEditSched(task.id)} style={{ fontSize: 11, color: sched ? "#38bdf8" : "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: user ? "pointer" : "default", display: 'flex', alignItems: 'center', gap: 5 }}>
                                 <CalIcon /> {sched || "Set date"}
                               </button>
                             )}
-                            {task.link && <a href={task.link} target="_blank" rel="noopener" style={{ fontSize: 11, color: "#38bdf8", textDecoration: "none" }}><LinkIcon /> Resource</a>}
-                            <button onClick={() => setExpandedNotes(p => ({ ...p, [task.id]: !p[task.id] }))} style={{ fontSize: 11, color: note ? "#a78bfa" : "rgba(255,255,255,0.25)", background: "none", border: "none", cursor: "pointer" }}>
-                              {note ? "View Note" : "+ Note"}
+                            {task.link && <a href={task.link} target="_blank" rel="noopener" style={{ fontSize: 11, color: "#38bdf8", textDecoration: "none", display: 'flex', alignItems: 'center', gap: 5 }}><LinkIcon /> Resource</a>}
+                            <button onClick={() => setExpandedNotes(p => ({ ...p, [task.id]: !p[task.id] }))} style={{ fontSize: 11, color: note ? "#a78bfa" : "rgba(255,255,255,0.25)", background: "none", border: "none", cursor: "pointer", display: 'flex', alignItems: 'center', gap: 5 }}>
+                               + Note
                             </button>
                           </div>
 
@@ -312,40 +292,100 @@ export default function App() {
             </div>
           </>)}
 
-          {/* SCHEDULE TAB */}
+          {/* ═══ SCHEDULE TAB ═══ */}
           {tab === "schedule" && (<>
-            <div style={{ display: "flex", gap: 20, marginBottom: 28 }}>
+            <div style={{ display: "flex", gap: 20, marginBottom: 28, flexWrap: 'wrap' }}>
               <div>
-                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 4 }}>START DATE</label>
-                <input disabled={!user} type="date" value={s.startDate} onChange={e => setStart(e.target.value)} style={{ background: "#1e293b", color: "#fff", border: "1px solid #334155", padding: "5px", borderRadius: "4px" }} />
+                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 6, fontWeight: 700, letterSpacing: '.08em' }}>START DATE</label>
+                <input disabled={!user} type="date" value={s.startDate} onChange={e => setStart(e.target.value)} style={{ background: "rgba(255,255,255,0.04)", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.1)", padding: "10px 14px", borderRadius: "8px", fontFamily: 'monospace' }} />
               </div>
               <div>
-                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 4 }}>HOURS / WEEK</label>
-                <input disabled={!user} type="number" value={s.weeklyHours} onChange={e => setHrs(e.target.value)} style={{ background: "#1e293b", color: "#fff", border: "1px solid #334155", padding: "5px", borderRadius: "4px", width: "60px" }} />
+                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 6, fontWeight: 700, letterSpacing: '.08em' }}>HOURS / WEEK</label>
+                <input disabled={!user} type="number" value={s.weeklyHours} onChange={e => setHrs(e.target.value)} style={{ background: "rgba(255,255,255,0.04)", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.1)", padding: "10px 14px", borderRadius: "8px", width: "80px", fontFamily: 'monospace' }} />
               </div>
             </div>
+
+            <h3 style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 14 }}>Upcoming Tasks</h3>
+            {upcoming.length === 0 ? (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", padding: "40px 0", textAlign: "center", borderRadius: 12, border: "1px dashed rgba(255,255,255,0.08)" }}>
+                No tasks scheduled yet — set dates in the Tasks tab
+              </div>
+            ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 30 }}>
+                    {upcoming.map(u => (
+                        <div key={u.id} style={{ padding: "12px 16px", background: "rgba(255,255,255,0.03)", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div>
+                                <div style={{ fontSize: 13, fontWeight: 600 }}>{u.task.name}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{u.phase.badge} · {u.phase.title}</div>
+                            </div>
+                            <div style={{ fontFamily: "monospace", color: "#38bdf8", fontWeight: 600, fontSize: 12 }}>{u.date}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
             
+            <h3 style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: ".08em", textTransform: "uppercase", marginTop: 32, marginBottom: 14 }}>Time Projection</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {upcoming.map(u => (
-                <div key={u.id} style={{ padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", display: "flex", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{u.task.name}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{u.phase.badge}</div>
+                {pStats.map(ps => {
+                    const remHrs = ps.tasks.filter(t => !s.tasks[t.id]).reduce((a, t) => a + (t.est || 0), 0);
+                    const wks = Math.ceil(remHrs / s.weeklyHours);
+                    return (
+                        <div key={ps.id} style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 18px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: ps.accent }} />
+                                    <span style={{ fontSize: 13, fontWeight: 600 }}>{ps.badge}: {ps.title}</span>
+                                </div>
+                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>
+                                    {ps.pct === 100 ? "Complete" : `${remHrs}h left · ~${wks} wks`}
+                                </div>
+                            </div>
+                            <Bar pct={ps.pct} color={ps.accent} />
+                        </div>
+                    );
+                })}
+            </div>
+          </>)}
+
+          {/* ═══ DASHBOARD TAB ═══ */}
+          {tab === "dashboard" && (<>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: 30 }}>
+              <Stat label="Completed" value={doneCount} sub={`/${ALL_TASKS.length}`} />
+              <Stat label="Progress" value={`${pct}%`} color="#38bdf8" />
+              <Stat label="Scheduled" value={Object.keys(s.schedule || {}).length} />
+              <Stat label="Overdue" value={upcoming.filter(u => new Date(u.date) < new Date()).length} />
+            </div>
+
+            <h3 style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 14 }}>By Category</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 30 }}>
+              {Object.entries(CATS).map(([k, cat]) => {
+                const ct = ALL_TASKS.filter(t => t.category === k);
+                const cd = ct.filter(t => s.tasks[t.id]).length;
+                const cp = Math.round((cd / ct.length) * 100) || 0;
+                return (
+                  <div key={k} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, width: 85, color: cat.fg }}>{cat.label}</span>
+                    <div style={{ flex: 1 }}><Bar pct={cp} color={cat.fg} /></div>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "monospace", minWidth: 36 }}>{cd}/{ct.length}</span>
                   </div>
-                  <div style={{ fontFamily: "monospace", color: "#38bdf8" }}>{u.date}</div>
+                );
+              })}
+            </div>
+
+            <h3 style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 14 }}>By Phase</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {pStats.map(ps => (
+                <div key={ps.id} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                   <div style={{ display: "flex", alignItems: "center", gap: 8, width: 130 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: ps.accent }} />
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{ps.badge}</span>
+                    </div>
+                  <div style={{ flex: 1 }}><Bar pct={ps.pct} color={ps.accent} /></div>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "monospace", minWidth: 36 }}>{ps.done}/{ps.total}</span>
                 </div>
               ))}
             </div>
           </>)}
-
-          {/* DASHBOARD TAB */}
-          {tab === "dashboard" && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
-              <Stat label="Completed Tasks" value={doneCount} sub={`/ ${ALL_TASKS.length}`} />
-              <Stat label="Total Progress" value={`${pct}%`} color="#34d399" />
-              <Stat label="Active Phase" value={pStats.find(p => p.pct < 100)?.badge || "Done"} />
-            </div>
-          )}
 
         </div>
       </div>
