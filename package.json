@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://rup2014.github.io/nasa-roadmap",
+  "homepage": "https://rup2014.github.io/nasa-roadmap/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
